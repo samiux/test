@@ -263,6 +263,9 @@ outputs:
             alerts: yes      # log alerts that caused drops
             flows: all       # start or all: 'start' logs only a single drop
                              # per flow direction. All logs each dropped pkt.
+            # Enable logging the final action taken on a packet by the engine
+            # (will show more information in case of a drop caused by 'reject')
+            verdict: yes
         - smtp:
             #extended: yes # enable this for extended logging information
             # this includes: bcc, message-id, subject, x_mailer, user-agent
@@ -1323,15 +1326,15 @@ legacy:
 # Exception Policies
 #
 # Define a common behavior for all exception policies.
-# In IPS mode, the default is drop-packet/drop-flow. To fallback to old
-# behavior (setting each of them individually, or ignoring all), set this
-# to ignore.
+# In IPS mode, the default is drop-flow. For cases when that's not possible, the
+# engine will fall to drop-packet. To fallback to old behavior (setting each of
+# them individually, or ignoring all), set this to ignore.
 # All values available for exception policies can be used, and there is one
-# extra option: auto - which means drop-packet/drop-flow in IPS mode and
-# ignore in IDS mode).
-# Exception policy values are: drop-packet, drop-flow, reject, bypass,
-# pass-packet, pass-flow, ignore (disable).
-exception-policy: auto
+# extra option: auto - which means drop-flow or drop-packet (as explained above)
+# in IPS mode, and ignore in IDS mode. Exception policy values are: drop-packet,
+# drop-flow, reject, bypass, pass-packet, pass-flow, ignore (disable).
+#exception-policy: auto
+exception-policy: ignore
 
 # IP Reputation
 #reputation-categories-file: /etc/suricata/iprep/categories.txt
@@ -2201,6 +2204,7 @@ network:
       optional: true
     $INF_MONITORING:
       dhcp4: false
+      dhcp6: false
       optional: true
       addresses: [$INF_MONITORING_IP/$INF_NETMASK]
       routes:
