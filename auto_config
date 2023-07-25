@@ -1201,8 +1201,7 @@ security:
   limit-noproc: true
   # Use landlock security module under Linux
   landlock:
-    #enabled: no
-    enabled: yes
+    enabled: no
     directories:
       write:
         - /var/log/suricata/
