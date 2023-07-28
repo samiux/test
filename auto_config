@@ -1333,7 +1333,7 @@ legacy:
 # in IPS mode, and ignore in IDS mode. Exception policy values are: drop-packet,
 # drop-flow, reject, bypass, pass-packet, pass-flow, ignore (disable).
 #exception-policy: auto
-exception-policy: ignore
+exception-policy: bypass
 
 # IP Reputation
 #reputation-categories-file: /etc/suricata/iprep/categories.txt
@@ -1391,9 +1391,13 @@ host-os-policy:
 
 # Defrag settings:
 
+# The memcap-policy value can be "drop-packet", "pass-packet", "reject" or
+# "ignore" (which is the default).
 defrag:
   #memcap: 32mb
   memcap: $DEFRAG_MEMCAP
+  #memcap-policy: ignore
+  memcap-policy: ignore
   hash-size: 65536
   trackers: 65535 # number of defragmented flows to follow
   #max-frags: 65535 # number of fragments to keep (higher than trackers)
@@ -1420,25 +1424,28 @@ defrag:
 # By default, the reserved memory (memcap) for flows is 32MB. This is the limit
 # for flow allocation inside the engine. You can change this value to allow
 # more memory usage for flows.
-# The hash-size determine the size of the hash used to identify flows inside
+# The hash-size determines the size of the hash used to identify flows inside
 # the engine, and by default the value is 65536.
-# At the startup, the engine can preallocate a number of flows, to get a better
+# At startup, the engine can preallocate a number of flows, to get better
 # performance. The number of flows preallocated is 10000 by default.
-# emergency-recovery is the percentage of flows that the engine need to
-# prune before unsetting the emergency state. The emergency state is activated
-# when the memcap limit is reached, allowing to create new flows, but
+# emergency-recovery is the percentage of flows that the engine needs to
+# prune before clearing the emergency state. The emergency state is activated
+# when the memcap limit is reached, allowing new flows to be created, but
 # pruning them with the emergency timeouts (they are defined below).
 # If the memcap is reached, the engine will try to prune flows
 # with the default timeouts. If it doesn't find a flow to prune, it will set
 # the emergency bit and it will try again with more aggressive timeouts.
-# If that doesn't work, then it will try to kill the last time seen flows
-# not in use.
+# If that doesn't work, then it will try to kill the oldest flows using
+# last time seen flows.
 # The memcap can be specified in kb, mb, gb.  Just a number indicates it's
 # in bytes.
+# The memcap-policy can be "drop-packet", "pass-packet", "reject" or "ignore"
+# (which is the default).
 
 flow:
   #memcap: 128mb
   #memcap-policy: ignore
+  memcap-policy: ignore
   memcap: $FLOW_MEMCAP
   hash-size: 65536
   prealloc: 10000
@@ -1451,6 +1458,12 @@ flow:
 # setups where both sides of a flow are not tagged with the same vlan
 # tag, we can ignore the vlan id's in the flow hashing.
 vlan:
+  use-for-tracking: true
+
+# This option controls the use of livedev ids in the flow (and defrag)
+# hashing. This is enabled by default and should be disabled if
+# multiple live devices are used to capture traffic from the same network
+livedev:
   use-for-tracking: true
 
 # Specific timeouts for flows. Here you can specify the timeouts that the
@@ -1579,7 +1592,6 @@ stream:
   #memcap-policy: ignore
   checksum-validation: yes      # reject incorrect csums
   #midstream: false
-  midstream: true
   #midstream-policy: ignore
   inline: auto                  # auto will use inline mode in IPS mode, yes or no set it statically
   reassembly:
