@@ -1,0 +1,86 @@
+#!/bin/bash
+
+# RedCoat - TLS/SSL Visibility for Rosemary and Garland
+
+# Install related packages
+sudo apt -y install tcpreplay netcat-openbsd
+
+# Install PolarProxy
+sudo adduser --system --shell /bin/bash proxyuser
+sudo mkdir /var/log/PolarProxy
+sudo chown proxyuser:root /var/log/PolarProxy/
+sudo chmod 0775 /var/log/PolarProxy/
+
+sudo mkdir -p /home/proxyuser/PolarProxy
+cd /home/proxyuser
+curl https://www.netresec.com/?download=PolarProxy | tar -xzf -
+sudo chown -R proxyuser:proxyuser /home/proxyuser
+
+# Set firewall
+if [ -f /home/proxyuser/setfirewall ]
+then
+        sudo rm /home/proxyuser/setfirewall
+fi
+
+sudo touch /home/proxyuser/setfirewall
+sudo cat >>/home/proxyuser/setfirewall <<ENDFILE
+#!/bin/bash
+sudo iptables -A INPUT -i lo -p tcp --dport 57012 -j ACCEPT
+ENDFILE
+
+# Create PolarProxy.services
+if [ -f /etc/systemd/system/PolarProxy.service ]
+then
+	sudo rm /etc/systemd/system/PolarProxy.service
+fi
+
+sudo touch /etc/systemd/system/PolarProxy.service
+sudo cat >>/etc/systemd/system/PolarProxy.service <<ENDFILE
+[Unit]
+Description=PolarProxy TLS pcap logger
+After=network.target
+
+[Service]
+Type=simple
+User=proxyuser
+WorkingDirectory=/home/proxyuser/PolarProxy
+ExecStart=/home/proxyuser/PolarProxy/PolarProxy -v -p 10443,80,443 -x /var/log/PolarProxy/polarproxy.cer -f /var/log/PolarProxy/proxyflows.log -o /var/log/PolarProxy/ --certhttp 10080 --insecure --pcapoverip 57012
+ExecStartPost=/home/proxyuser/setfirewall
+SendSIGKILL=no
+
+[Install]
+WantedBy=multi-user.target
+ENDFILE
+
+# Create tcpreplay.services
+if [ -f /etc/systemd/system/tcpreplay.service ]
+then
+        sudo rm /etc/systemd/system/tcpreplay.service
+fi
+
+sudo touch /etc/systemd/system/tcpreplay.service
+sudo cat >>/etc/systemd/system/tcpreplay.service <<ENDFILE
+[Unit]
+Description=Tcpreplay of decrypted traffic from PolarProxy
+After=PolarProxy.service
+
+[Service]
+Type=simple
+ExecStart=/bin/sh -c 'nc localhost 57012 | tcpreplay -i eth1 -t -'
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
+ENDFILE
+
+# Misc settings
+sudo chmod +x /home/proxyuser/setfirewall
+
+# Start services
+sudo systemctl enale PolarProxy.service
+sudo systemctl start PolarProxy.service
+sudo systemctl enable tcpreplay.service
+sudo systemctl start tcpreplay.service
+
+# EOF
