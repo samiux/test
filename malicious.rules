@@ -1,0 +1,2 @@
+drop http any any -> any any (msg:"Malicious URI"; flow:stateless; lua:malicious_uri.lua; priority:1; classtype:policy-violation; sid:100000000; rev:196;)
+
